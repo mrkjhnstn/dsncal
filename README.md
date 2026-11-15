@@ -24,8 +24,33 @@ If you are on the starting view when the UTC week rolls over, the view follows t
 | Shift + arrow, PageUp / PageDown | 4 weeks back / forward |
 | Home, T, or the Today button | Return to the current week |
 | Pop out | Open in a small separate window, starting at the week in view |
+| Click a complex row, or G / C / M | Show that site's holidays; click or press again to hide |
+| Esc | Hide holidays |
 
 The Today button shows an arrow pointing toward the current week when it is out of view.
+
+## Site holidays
+
+Click GDSCC, CDSCC or MDSCC in the header to show holidays for that site only. While a site is selected:
+
+- Holidays are filled teal and JPL RDO shading is hidden.
+- A lighter outlined cell is another day off that is not a public holiday (see table).
+- Hover or click a marked day to see its name in the line at the bottom.
+- The bottom line also says when the year in view has no holiday data.
+- Holidays are local dates at the site and are marked on the same calendar date. They are not shifted to UTC.
+
+| Row | Shows | Source | Lighter cells |
+|---|---|---|---|
+| GDSCC | JPL holidays | JPL HR 2027 schedule (2026-11-02) and FY2027 9/80 calendar; Jan-Sep 2026 computed from the JPL holiday list | Day the 9/80 RDO is observed when a holiday falls on an RDO Friday |
+| CDSCC | ACT public holidays | ACT Government list, checked against the CDSCC 2027 calendar | none |
+| MDSCC | Spain national, Comunidad de Madrid, Madrid city local | Comunidad de Madrid calendars; MDSCC 2027 calendar | Company/union holidays (2027 only) |
+
+Data covers 2026 and 2027. To add a year, extend the `HOLIDAYS` table near the top of the script and update
+each site's `years` range. Typical publication times: ACT list about a year ahead; Madrid regional decree in
+late September or October; Madrid local days in December; JPL schedule from HR.
+
+Not confirmed: the JPL floating holiday on 2026-12-24 and the two 2026 "RDO observed" days were read from
+the FY2027 9/80 calendar, not from an HR list. MDSCC company/union days for 2026 are not included.
 
 ## Tab or pop-out
 
@@ -56,7 +81,8 @@ Works from `file://` or from any static web server (copy the one file). No build
   - `COMPLEXES` — complex names, IANA zones and abbreviations keyed by UTC offset in minutes
 - CDSCC uses zone `Australia/Sydney` (same rules as Canberra).
 - The banner image is embedded as a base64 data URL, which is why the file is about 170 kB with one very long line.
-- `cellFor(dayNumber)` returns the DOM cell for a date. It is the intended hook for per-day markers.
+- `cellFor(dayNumber)` returns the DOM cell for a date. Holidays use it; critical events can too.
+  - `HOLIDAYS` - per-site holiday lists (see Site holidays)
 
 ## Testing
 
@@ -66,8 +92,7 @@ Also checked by hand in Safari, Chrome and Zen (Firefox) on macOS, 2026-11-15.
 
 ## Planned
 
-- Complex-specific items such as local holidays
-- DSN Level 1/2/3 critical events
+- DSN Level 1/2/3 critical events (on hold)
 
 If critical-event data is internal, keep it out of this repo and load it from a separate file on an internal server.
 

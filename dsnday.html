@@ -34,6 +34,9 @@
   .complexes { border-spacing: 2px; margin: 0 0 4px; }
   .complexes td { font-size: 16px; padding: 1px 3px; white-space: nowrap; }
   .complexes td.r { text-align: right; }
+  .complexes tr { cursor: pointer; }
+  .complexes tr:hover td { background: rgba(255, 255, 255, 0.08); }
+  .complexes tr.sel td { background: rgba(0, 190, 160, 0.32); }
 
   .toolbar { display: flex; justify-content: space-between; margin: 2px 0 6px; }
   button {
@@ -82,8 +85,13 @@
   .day b { font-weight: 400; }
   .day small { font-size: 12px; color: #ccc; }
   .day.today b { color: yellow; font-weight: 900; }
+  /* Site holiday view: RDO shading is hidden, holidays are filled */
+  .site-sel .day.rdo { background: none; }
+  .site-sel .day.hol { background: rgba(0, 190, 160, 0.5); cursor: help; }
+  .site-sel .day.hol.alt { background: rgba(0, 190, 160, 0.16); box-shadow: inset 0 0 0 1px rgba(0, 190, 160, 0.75); }
 
   .hint { flex: none; font-size: 11px; color: #999; text-align: center; padding-top: 5px; white-space: nowrap; }
+  .hint.on { color: #cfeee9; }
 </style>
 </head>
 <body>
@@ -102,7 +110,7 @@
     <span class="weekend">Sa</span><span class="weekend">Su</span>
   </div>
   <div class="scroller" id="scroller" tabindex="-1"><div id="rows"></div></div>
-  <div class="hint" id="hint">&uarr; &darr; week &nbsp;&middot;&nbsp; Shift or Page = 4 weeks &nbsp;&middot;&nbsp; Home = today</div>
+  <div class="hint" id="hint"></div>
 </div>
 
 <script>
@@ -121,6 +129,57 @@
     { name: 'CDSCC', zone: 'Australia/Sydney',    abbr: { '600': 'AEST', '660': 'AEDT' } },
     { name: 'MDSCC', zone: 'Europe/Madrid',       abbr: { '60': 'CET', '120': 'CEST' } },
   ];
+
+  // Holidays per complex, shown when its row is clicked. Dates are LOCAL calendar dates
+  // at the site and are marked on the cell with the same date (no UTC shift).
+  // Entry: [date, name] = holiday (solid fill); [date, name, 1] = other day off (light fill).
+  // Update yearly; `years` is the range the list is complete for.
+  const RDO_MOVED = '9/80 RDO observed (holiday falls on RDO Friday)';
+  const HOLIDAYS = {
+    GDSCC: { label: 'JPL', years: [2026, 2027], days: [
+      // 2026: Jan-Sep by JPL holiday rules; Oct-Dec from the JPL FY2027 9/80 calendar
+      ['2026-01-01', "New Year's Day"], ['2026-01-19', 'Martin Luther King Jr. Day'], ['2026-02-16', "Presidents' Day"],
+      ['2026-05-25', 'Memorial Day'], ['2026-06-19', 'Juneteenth'], ['2026-07-03', 'Independence Day (observed)'],
+      ['2026-09-07', 'Labor Day'], ['2026-11-25', RDO_MOVED, 1],
+      ['2026-11-26', 'Thanksgiving Day'], ['2026-11-27', 'Day after Thanksgiving'],
+      ['2026-12-24', 'Floating Holiday'], ['2026-12-25', 'Christmas Day'], ['2026-12-28', RDO_MOVED, 1],
+      // 2027: JPL HR holiday schedule (updated 2026-11-02)
+      ['2027-01-01', "New Year's Day"], ['2027-01-18', 'Martin Luther King Jr. Day'], ['2027-02-15', "Presidents' Day"],
+      ['2027-05-31', 'Memorial Day'], ['2027-06-18', 'Juneteenth'], ['2027-07-05', 'Independence Day (observed)'],
+      ['2027-09-06', 'Labor Day'], ['2027-11-24', RDO_MOVED, 1],
+      ['2027-11-25', 'Thanksgiving Day'], ['2027-11-26', 'Day after Thanksgiving'],
+      ['2027-12-22', RDO_MOVED, 1], ['2027-12-23', 'Floating Holiday 1'],
+      ['2027-12-24', 'Christmas Day (observed)'], ['2027-12-30', 'Floating Holiday 2'], ['2027-12-31', "New Year's Day 2028 (observed)"],
+    ] },
+    CDSCC: { label: 'CDSCC', years: [2026, 2027], days: [
+      // ACT public holidays
+      ['2026-01-01', "New Year's Day"], ['2026-01-26', 'Australia Day'], ['2026-03-09', 'Canberra Day'],
+      ['2026-04-03', 'Good Friday'], ['2026-04-04', 'Easter Saturday'], ['2026-04-05', 'Easter Sunday'], ['2026-04-06', 'Easter Monday'],
+      ['2026-04-25', 'Anzac Day'], ['2026-04-27', 'Anzac Day (additional)'], ['2026-06-01', 'Reconciliation Day'],
+      ['2026-06-08', "King's Birthday"], ['2026-10-05', 'Labour Day'], ['2026-12-25', 'Christmas Day'],
+      ['2026-12-26', 'Boxing Day'], ['2026-12-28', 'Boxing Day (additional)'],
+      ['2027-01-01', "New Year's Day"], ['2027-01-26', 'Australia Day'], ['2027-03-08', 'Canberra Day'],
+      ['2027-03-26', 'Good Friday'], ['2027-03-27', 'Easter Saturday'], ['2027-03-28', 'Easter Sunday'], ['2027-03-29', 'Easter Monday'],
+      ['2027-04-25', 'Anzac Day'], ['2027-04-26', 'Anzac Day (additional)'], ['2027-05-31', 'Reconciliation Day'],
+      ['2027-06-14', "King's Birthday"], ['2027-10-04', 'Labour Day'], ['2027-12-25', 'Christmas Day'],
+      ['2027-12-26', 'Boxing Day'], ['2027-12-27', 'Christmas Day (additional)'], ['2027-12-28', 'Boxing Day (additional)'],
+    ] },
+    MDSCC: { label: 'MDSCC', years: [2026, 2027], days: [
+      // Spain national + Comunidad de Madrid + Madrid city local days; 2027 company/union days from the MDSCC calendar
+      ['2026-01-01', "New Year's Day"], ['2026-01-06', 'Epiphany'], ['2026-04-02', 'Maundy Thursday'], ['2026-04-03', 'Good Friday'],
+      ['2026-05-01', 'Labour Day'], ['2026-05-02', 'Comunidad de Madrid Day'], ['2026-05-15', 'San Isidro (local)'],
+      ['2026-08-15', 'Assumption'], ['2026-10-12', 'National Day of Spain'], ['2026-11-02', "All Saints' Day (moved)"],
+      ['2026-11-09', 'La Almudena (local)'], ['2026-12-07', 'Constitution Day (moved)'], ['2026-12-08', 'Immaculate Conception'],
+      ['2026-12-25', 'Christmas Day'],
+      ['2027-01-01', "New Year's Day"], ['2027-01-06', 'Epiphany'], ['2027-03-19', 'San José'], ['2027-03-25', 'Maundy Thursday'],
+      ['2027-03-26', 'Good Friday'], ['2027-05-01', 'Labour Day'], ['2027-05-15', 'San Isidro (local)'],
+      ['2027-08-16', 'Assumption (moved)'], ['2027-10-12', 'National Day of Spain'], ['2027-11-01', "All Saints' Day"],
+      ['2027-11-09', 'La Almudena (local)'], ['2027-12-06', 'Constitution Day'], ['2027-12-08', 'Immaculate Conception'],
+      ['2027-12-10', 'Company/union holiday', 1], ['2027-12-24', 'Company/union holiday', 1], ['2027-12-25', 'Christmas Day'],
+      ['2027-12-31', 'Company/union holiday', 1],
+    ] },
+  };
+  const DEFAULT_HINT = '↑↓ week · Shift/Page 4 weeks · Home today · click a site for holidays';
 
   // ------------------------------------------------------------- date math
   // All calendar math uses UTC day numbers (days since 1970-01-01).
@@ -178,6 +237,7 @@
   const markToday = on => { const c = cellFor(todayNum); if (c) c.classList.toggle('today', on); };
 
   // ---------------------------------------------------------------- clock
+  let site = null;             // complex whose holidays are shown, or null
   const fmtCache = {};
   function zoneInfo(now, zone) {
     const f = fmtCache[zone] || (fmtCache[zone] = new Intl.DateTimeFormat('en-US', {
@@ -204,7 +264,8 @@
     $('wktime').textContent = 'Week ' + w.year + ' ' + pad(w.week, 2) + ' — DOY ' + pad(doy(n), 3);
     $('complexes').innerHTML = COMPLEXES.map(c => {
       const z = zoneInfo(now, c.zone);
-      return '<tr><td>» ' + c.name + '</td><td>' + z.weekday + '</td><td>' + z.month + '</td><td>' + z.day +
+      return '<tr data-site="' + c.name + '"' + (c.name === site ? ' class="sel"' : '') +
+        ' title="Click to show or hide ' + HOLIDAYS[c.name].label + ' holidays"><td>» ' + c.name + '</td><td>' + z.weekday + '</td><td>' + z.month + '</td><td>' + z.day +
         '</td><td class="r">' + z.time + '</td><td>' + (c.abbr[z.offset] || '') + '</td><td class="r">' + z.offsetStr + '</td></tr>';
     }).join('');
   }
@@ -243,7 +304,60 @@
     const h = homeIdx();
     todayBtn.classList.toggle('home', idx === h);
     todayBtn.textContent = idx === h ? 'Today' : (idx > h ? '↑ Today' : '↓ Today');
+    refreshHint();
   }
+
+  // ------------------------------------------------------- site holidays
+  const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  let marked = [], hoverText = '', popBlocked = false;
+  const parseDay = str => { const p = str.split('-').map(Number); return dayNum(p[0], p[1] - 1, p[2]); };
+
+  function setSite(name) {
+    site = HOLIDAYS[name] ? name : null;
+    for (const c of marked) { c.classList.remove('hol', 'alt'); c.removeAttribute('title'); }
+    marked = [];
+    document.body.classList.toggle('site-sel', !!site);
+    if (site) {
+      for (const [date, label, alt] of HOLIDAYS[site].days) {
+        const n = parseDay(date), c = cellFor(n);
+        if (!c) continue;
+        const d = ymd(n);
+        c.classList.add('hol'); if (alt) c.classList.add('alt');
+        c.title = WEEKDAYS[n - mondayOf(n)] + ' ' + d.d + ' ' + MONTHS[d.m] + ' ' + d.y + ' — ' + label;
+        marked.push(c);
+      }
+    }
+    hoverText = '';
+    for (const tr of $('complexes').children) tr.classList.toggle('sel', tr.dataset.site === site);
+    refreshHint();
+  }
+
+  function refreshHint() {
+    let t = DEFAULT_HINT;
+    if (popBlocked) t = 'Pop-out was blocked — allow popups for this page and try again.';
+    else if (hoverText) t = hoverText;
+    else if (site && topIdx >= 0) {
+      const h = HOLIDAYS[site], y = isoWeek(mondayAt(topIdx)).year, span = h.years[0] + '–' + h.years[1];
+      t = (y < h.years[0] || y > h.years[1])
+        ? 'No ' + h.label + ' holiday data for ' + y + ' (have ' + span + ')'
+        : h.label + ' holidays ' + span + ' · hover a day for its name · Esc clears';
+    }
+    if (hint.textContent !== t) hint.textContent = t;
+    hint.classList.toggle('on', !popBlocked && !!hoverText);
+  }
+
+  $('complexes').addEventListener('click', e => {
+    const tr = e.target.closest('tr');
+    if (tr) setSite(tr.dataset.site === site ? null : tr.dataset.site);
+  });
+  const showCell = e => {
+    const c = e.target.closest ? e.target.closest('.day.hol') : null;
+    const t = c ? c.title : '';
+    if (t !== hoverText) { hoverText = t; refreshHint(); }
+  };
+  rowsEl.addEventListener('mouseover', showCell);
+  rowsEl.addEventListener('click', showCell);
+  rowsEl.addEventListener('mouseleave', () => { if (hoverText) { hoverText = ''; refreshHint(); } });
 
   // Eased animation toward a target scrollTop. Repeated key presses just move the
   // target, so holding a key scrolls continuously.
@@ -296,6 +410,10 @@
       case 'PageDown': moveWeeks(PAGE_WEEKS); break;
       case 'PageUp': moveWeeks(-PAGE_WEEKS); break;
       case 'Home': case 't': case 'T': goToday(); break;
+      case 'g': case 'G': setSite(site === 'GDSCC' ? null : 'GDSCC'); break;
+      case 'c': case 'C': setSite(site === 'CDSCC' ? null : 'CDSCC'); break;
+      case 'm': case 'M': setSite(site === 'MDSCC' ? null : 'MDSCC'); break;
+      case 'Escape': if (!site) return; setSite(null); break;
       default: return;
     }
     e.preventDefault();
@@ -318,10 +436,11 @@
     const h = Math.min(s.h, availH - 80);
     const left = (screen.availLeft || 0) + Math.max(0, availW - s.w - 24);
     const top = (screen.availTop || 0) + 24;
-    const url = location.href.split('#')[0] + '#popout&w=' + mondayAt(topIdx);
+    const url = location.href.split('#')[0] + '#popout&w=' + mondayAt(topIdx) + (site ? '&s=' + site : '');
     popWin = window.open(url, 'DSNDayPopout', 'popup=yes,width=' + s.w + ',height=' + h + ',left=' + left + ',top=' + top);
+    popBlocked = !popWin;
     if (popWin) popWin.focus();
-    else hint.textContent = 'Pop-out was blocked — allow popups for this page and try again.';
+    refreshHint();
   });
 
   // In the pop-out: resize the window to fit the content exactly (allowed because
@@ -342,7 +461,11 @@
     const idx = Math.round((mondayOf(Number(m[1])) - baseMonday) / 7);
     return idx >= 0 && idx < ROWS ? idx : null;
   }
-  window.addEventListener('hashchange', () => { const i = hashIdx(); if (i !== null) animateTo(i * ROW_H); });
+  const hashSite = () => { const m = /[#&]s=([A-Z]+)/.exec(location.hash); return m ? m[1] : null; };
+  window.addEventListener('hashchange', () => {
+    const i = hashIdx(); if (i !== null) animateTo(i * ROW_H);
+    setSite(hashSite());
+  });
 
   // ----------------------------------------------------------------- start
   markToday(true);
@@ -350,6 +473,7 @@
   jumpTo(startIdx !== null ? startIdx : homeIdx());
   updateTop(true);
   tick();
+  setSite(hashSite());
   if (isPopout) window.addEventListener('load', () => setTimeout(fitPopout, 50));
 })();
 </script>
