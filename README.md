@@ -62,7 +62,7 @@ Works from `file://` or from any static web server (copy the one file). No build
 
 Checked in Chromium: every rendered week (2016–2036) compared against Python's `isocalendar()` for week
 number, day, DOY, weekend and RDO; keyboard, wheel, minute update, UTC day rollover and pop-out.
-Not yet verified in Safari, Firefox or Zen.
+Also checked by hand in Safari, Chrome and Zen (Firefox) on macOS, 2026-11-15.
 
 ## Planned
 
