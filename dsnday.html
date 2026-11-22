@@ -92,6 +92,15 @@
 
   .hint { flex: none; font-size: 11px; color: #999; text-align: center; padding-top: 5px; white-space: nowrap; }
   .hint.on { color: #cfeee9; }
+
+  /* Widget mode (#widget): transparent page for Plash / Übersicht */
+  html.widget, body.widget { background: transparent; }
+  body.widget { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85); }
+  body.widget .card { background: rgba(28, 28, 28, var(--bg, 0.6)); border: 1px solid rgba(255, 255, 255, 0.18); padding-top: 6px; }
+  body.widget .banner, body.widget #popBtn { display: none; }
+  body.widget h1 { margin-top: 0; }
+  body.fixed .card { height: auto; }
+  body.fixed .scroller { flex: none; height: calc(var(--weeks) * var(--row)); }
 </style>
 </head>
 <body>
@@ -203,6 +212,26 @@
   const todayBtn = $('todayBtn'), popBtn = $('popBtn'), hint = $('hint');
   const isPopout = /(^|[#&])popout\b/.test(location.hash);
   if (isPopout) document.body.classList.add('popout');
+
+  // Widget mode options, all in the hash: #widget&weeks=20&pos=tr&gap=40&bg=0.6&s=CDSCC
+  const hashParam = k => { const m = new RegExp('[#&]' + k + '=([^&]*)').exec(location.hash); return m ? decodeURIComponent(m[1]) : null; };
+  const isWidget = /(^|[#&])widget\b/.test(location.hash);
+  const POS = { tl: ['flex-start', 'flex-start'], tc: ['flex-start', 'center'], tr: ['flex-start', 'flex-end'],
+                ml: ['center', 'flex-start'], c: ['center', 'center'], mr: ['center', 'flex-end'],
+                bl: ['flex-end', 'flex-start'], bc: ['flex-end', 'center'], br: ['flex-end', 'flex-end'] };
+  if (isWidget) {
+    const root = document.documentElement.style, body = document.body;
+    document.documentElement.classList.add('widget');
+    body.classList.add('widget');
+    const weeks = parseInt(hashParam('weeks'), 10);
+    if (weeks > 0) { body.classList.add('fixed'); root.setProperty('--weeks', Math.min(weeks, 104)); }
+    root.setProperty('--gap', (Math.max(0, parseInt(hashParam('gap'), 10)) || 0) + 'px');
+    const bg = parseFloat(hashParam('bg'));
+    if (isFinite(bg)) root.setProperty('--bg', Math.max(0, Math.min(1, bg)));
+    const pos = POS[(hashParam('pos') || 'tl').toLowerCase()] || POS.tl;
+    body.style.alignItems = pos[0];
+    body.style.justifyContent = pos[1];
+  }
 
   // ------------------------------------------------------- build the weeks
   let todayNum = Math.floor(Date.now() / DAY_MS);
@@ -467,6 +496,14 @@
     setSite(hashSite());
   });
 
+  // In a fixed-height widget inside a frame, tell the parent the card size so it
+  // can size the frame to fit (used by the Übersicht wrapper).
+  function postSize() {
+    if (!isWidget || !document.body.classList.contains('fixed') || window.parent === window) return;
+    const gap = parseFloat(getComputedStyle(card).marginTop) || 0;
+    window.parent.postMessage({ dsnday: 'size', w: card.offsetWidth + 2 * gap, h: card.offsetHeight + 2 * gap }, '*');
+  }
+
   // ----------------------------------------------------------------- start
   markToday(true);
   const startIdx = hashIdx();
@@ -475,6 +512,10 @@
   tick();
   setSite(hashSite());
   if (isPopout) window.addEventListener('load', () => setTimeout(fitPopout, 50));
+  if (isWidget) {
+    window.addEventListener('load', postSize);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(postSize);
+  }
 })();
 </script>
 </body>

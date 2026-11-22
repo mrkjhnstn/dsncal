@@ -64,6 +64,52 @@ scrolls independently. Notes:
 - Firefox/Zen open popups as tabs if configured that way (`browser.link.open_newwindow.restriction`).
 - For a chromeless window with no click: `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="file:///path/to/dsnday.html#popout" --window-size=426,870`
 
+## Widget mode (Plash, Übersicht)
+
+Add `#widget` to the URL for a desktop-widget version: transparent page, no banner, no Pop out button,
+translucent card with shadowed text. Options go in the same hash, joined with `&`:
+
+| Option | Meaning | Default |
+|---|---|---|
+| `weeks=N` | Show exactly N week rows (card height fits them) | fill the window height |
+| `pos=XX` | Card position: `tl tc tr ml c mr bl bc br` | `tl` |
+| `gap=N` | Margin around the card, px | `0` |
+| `bg=X` | Card background opacity, 0 to 1 | `0.6` |
+| `s=SITE` | Start with GDSCC, CDSCC or MDSCC holidays shown | none |
+
+Example: `dsnday.html#widget&pos=tr&weeks=20&gap=40&bg=0.4`
+
+### Plash
+
+Plash shows a web page as the desktop wallpaper, behind all windows. In Plash, add a website with:
+
+- `https://mrkjhnstn.github.io/dsncal/dsnday.html#widget&pos=tr&weeks=20&gap=48` (hosted), or
+- the local file `dsnday.html` with the same hash (Plash can open local files).
+
+Turn on Plash's Browsing Mode to scroll, click sites or use the keys; otherwise it is display-only and
+stays on the current week. `gap` keeps the card clear of the menu bar and screen edge.
+
+### Übersicht
+
+`ubersicht/dsnday.widget/index.jsx` loads the page in a frame with `#widget&weeks=20`. The page reports
+its card size to the frame, so the widget is sized automatically. Install or update:
+
+```sh
+ubersicht/install.sh        # or: ubersicht/install.sh "/path/to/widgets folder"
+```
+
+The script copies `index.jsx` and the current `dsnday.html` into `~/Library/Application Support/Übersicht/widgets/dsnday.widget/`.
+Re-run it after changing `dsnday.html`. It does not overwrite an `index.jsx` you have edited there.
+
+Settings are at the top of the installed `index.jsx`:
+
+- `className` - screen position (`top`, `left`)
+- `OPTIONS` - widget options from the table above; `weeks` must be set here
+- `SRC` - local copy (default, works offline) or the hosted GitHub Pages copy (always current)
+
+Wheel/trackpad scrolling and clicks work in Übersicht. Keyboard control depends on whether Übersicht
+passes key presses to widgets; if the arrow keys do nothing, scroll instead.
+
 ## Hosting
 
 Works from `file://` or from any static web server (copy the one file). No build step.
@@ -89,6 +135,8 @@ Works from `file://` or from any static web server (copy the one file). No build
 Checked in Chromium: every rendered week (2016–2036) compared against Python's `isocalendar()` for week
 number, day, DOY, weekend and RDO; keyboard, wheel, minute update, UTC day rollover and pop-out.
 Also checked by hand in Safari, Chrome and Zen (Firefox) on macOS, 2026-11-15.
+Widget mode and the Übersicht frame sizing checked in Chromium with a simulated host page; not yet tried in
+Plash or Übersicht themselves.
 
 ## Planned
 
