@@ -66,7 +66,7 @@ scrolls independently. Notes:
 
 ## Widget mode (Plash, Übersicht)
 
-Add `#widget` to the URL for a desktop-widget version: transparent page, no banner, no Pop out button,
+Add `#widget` to the URL for a desktop-widget version: transparent page, no Pop out button,
 translucent card with shadowed text. Options go in the same hash, joined with `&`:
 
 | Option | Meaning | Default |
@@ -76,6 +76,7 @@ translucent card with shadowed text. Options go in the same hash, joined with `&
 | `gap=N` | Margin around the card, px | `0` |
 | `bg=X` | Card background opacity, 0 to 1 | `0.6` |
 | `s=SITE` | Start with GDSCC, CDSCC or MDSCC holidays shown | none |
+| `banner=0` | Hide the DSN Service Scheduling banner | shown |
 
 Example: `dsnday.html#widget&pos=tr&weeks=20&gap=40&bg=0.4`
 
@@ -91,8 +92,8 @@ stays on the current week. `gap` keeps the card clear of the menu bar and screen
 
 ### Übersicht
 
-`ubersicht/dsnday.widget/index.jsx` loads the page in a frame with `#widget&weeks=20`. The page reports
-its card size to the frame, so the widget is sized automatically. Install or update:
+`ubersicht/dsnday.widget/index.jsx` loads `dsnday.html` and draws the calendar directly in the widget,
+inside a shadow root so its styles stay separate from other widgets. Install or update:
 
 ```sh
 ubersicht/install.sh        # or: ubersicht/install.sh "/path/to/widgets folder"
@@ -104,11 +105,16 @@ Re-run it after changing `dsnday.html`. It does not overwrite an `index.jsx` you
 Settings are at the top of the installed `index.jsx`:
 
 - `className` - screen position (`top`, `left`)
-- `OPTIONS` - widget options from the table above; `weeks` must be set here
+- `OPTIONS` - `weeks`, `bg`, `banner`, `s` (same meaning as the table above)
 - `SRC` - local copy (default, works offline) or the hosted GitHub Pages copy (always current)
 
-Wheel/trackpad scrolling and clicks work in Übersicht. Keyboard control depends on whether Übersicht
-passes key presses to widgets; if the arrow keys do nothing, scroll instead.
+Why no frame: Übersicht keeps its window click-through and only takes clicks when it sees the pointer over a
+widget. Pointer movement inside a frame never reaches Übersicht's page, so a framed widget shows hover
+effects but clicks and scrolling fall through to the desktop. The first version of this widget had that problem.
+
+How it works: the page script is a function, `DSNDay(root, app, opts)`. The page calls it on load; the widget
+defines `DSNDAY_EMBED` to skip that, then calls `DSNDay` with its shadow root. Keep the page as one `<style>`,
+one `<script>` and the `#app` element, since the widget looks for those.
 
 ## Hosting
 
@@ -127,6 +133,7 @@ Works from `file://` or from any static web server (copy the one file). No build
   - `COMPLEXES` — complex names, IANA zones and abbreviations keyed by UTC offset in minutes
 - CDSCC uses zone `Australia/Sydney` (same rules as Canberra).
 - The banner image is embedded as a base64 data URL, which is why the file is about 170 kB with one very long line.
+- The script is `DSNDay(root, app, opts)` plus a start-up block; options come from the URL hash (`dsndayOptions`).
 - `cellFor(dayNumber)` returns the DOM cell for a date. Holidays use it; critical events can too.
   - `HOLIDAYS` - per-site holiday lists (see Site holidays)
 
@@ -135,8 +142,8 @@ Works from `file://` or from any static web server (copy the one file). No build
 Checked in Chromium: every rendered week (2016–2036) compared against Python's `isocalendar()` for week
 number, day, DOY, weekend and RDO; keyboard, wheel, minute update, UTC day rollover and pop-out.
 Also checked by hand in Safari, Chrome and Zen (Firefox) on macOS, 2026-11-15.
-Widget mode and the Übersicht frame sizing checked in Chromium with a simulated host page; not yet tried in
-Plash or Übersicht themselves.
+Widget mode and the embedded Übersicht widget (clicks, wheel, keys, style isolation) checked in Chromium
+with a simulated host page.
 
 ## Planned
 

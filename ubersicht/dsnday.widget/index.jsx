@@ -1,15 +1,20 @@
 // DSNDay for Übersicht.
-// Shows dsnday.html in widget mode inside a frame that sizes itself to the card.
+// Loads dsnday.html and draws the calendar directly in the widget (no frame), inside a
+// shadow root so its styles don't mix with other widgets. Drawing it directly is what
+// lets Übersicht pass clicks and scrolling to it.
 // Install or update with ubersicht/install.sh from the dsncal repo.
 
-// Page source. The local copy works offline; the hosted copy updates itself.
+// Page source: the local copy (works offline) or the hosted copy (always current).
 const SRC = 'dsnday.widget/dsnday.html';
 // const SRC = 'https://mrkjhnstn.github.io/dsncal/dsnday.html';
 
-// Widget options (see README "Widget mode"). weeks is required here so the frame can size itself.
-//   weeks=20  week rows shown       bg=0.6   card background opacity, 0 to 1
-//   s=CDSCC   start with a site's holidays shown
-const OPTIONS = 'weeks=20&bg=0.6';
+// Widget options (see README "Widget mode").
+const OPTIONS = {
+  weeks: 20,      // week rows shown
+  bg: 0.6,        // card background opacity, 0 to 1
+  banner: true,   // DSN Service Scheduling banner
+  s: null,        // start with a site's holidays shown: 'GDSCC', 'CDSCC' or 'MDSCC'
+};
 
 // Screen position of the widget.
 export const className = `
@@ -17,36 +22,39 @@ export const className = `
   left: 40px;
 `;
 
-// The page keeps its own clock, so Übersicht never needs to re-render it.
+// The calendar keeps its own clock, so Übersicht never needs to re-render it.
 export const refreshFrequency = false;
 
-const FRAME_ID = 'dsnday-frame';
+// --- mount start
+let instance = null;
 
-// The page posts its card size once loaded; fit the frame to it.
-if (!window.__dsndaySizeListener) {
-  window.__dsndaySizeListener = true;
-  window.addEventListener('message', (e) => {
-    const d = e.data;
-    if (!d || d.dsnday !== 'size') return;
-    const frame = document.getElementById(FRAME_ID);
-    if (!frame || e.source !== frame.contentWindow) return;
-    frame.style.width = d.w + 'px';
-    frame.style.height = d.h + 'px';
-  });
+async function mountDSNDay(host) {
+  if (host.shadowRoot) return;
+  const shadow = host.attachShadow({ mode: 'open' });
+  try {
+    const res = await fetch(SRC, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+    const style = doc.querySelector('style');
+    const app = doc.getElementById('app');
+    const script = doc.querySelector('script');
+    if (!style || !app || !script) throw new Error('unexpected page layout');
+    shadow.innerHTML = '<style>' + style.textContent + '</style>' + app.outerHTML;
+    // Defining DSNDAY_EMBED stops the page's own start-up code; we call DSNDay instead.
+    const DSNDay = new Function('DSNDAY_EMBED', script.textContent + '\nreturn DSNDay;')(true);
+    if (instance) instance.destroy();
+    instance = DSNDay(shadow, shadow.getElementById('app'), { ...OPTIONS, widget: true, embedded: true });
+  } catch (err) {
+    shadow.innerHTML = '<div style="color:#fff;background:#900;padding:6px 10px;border-radius:6px;font:13px Arial">' +
+      'DSNDay: could not load ' + SRC + ' (' + err.message + ')</div>';
+  }
 }
 
+function unmountDSNDay() {
+  if (instance) { instance.destroy(); instance = null; }
+}
+// --- mount end
+
 export const render = () => (
-  <iframe
-    id={FRAME_ID}
-    title="DSNDay"
-    src={`${SRC}#widget&${OPTIONS}`}
-    style={{
-      display: 'block',
-      border: 0,
-      width: '410px',
-      height: '760px',
-      background: 'transparent',
-      colorScheme: 'normal',
-    }}
-  />
+  <div ref={(el) => (el ? mountDSNDay(el) : unmountDSNDay())} />
 );
