@@ -92,6 +92,9 @@
   .site-sel .day.rdo { background: none; }
   .site-sel .day.hol { background: rgba(0, 190, 160, 0.5); cursor: help; }
   .site-sel .day.hol.alt { background: rgba(0, 190, 160, 0.16); box-shadow: inset 0 0 0 1px rgba(0, 190, 160, 0.75); }
+  /* Today: yellow date, day of year and border (after the holiday rules so it wins on holidays) */
+  .day.today small { color: yellow; }
+  .dsnday .day.today, .site-sel .day.hol.alt.today { box-shadow: inset 0 0 0 2px yellow; border-radius: 3px; }
 
   .hint { flex: none; font-size: 11px; color: #999; text-align: center; padding-top: 5px; white-space: nowrap; }
   .hint.on { color: #cfeee9; }
